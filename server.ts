@@ -13,36 +13,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-// Explicitly register TypeScript / JavaScript MIME types
-if (express.static && express.static.mime) {
-  express.static.mime.define({
-    'text/javascript': ['ts', 'tsx', 'jsx', 'mjs', 'mts', 'js'],
-    'text/css': ['css'],
-    'application/json': ['json'],
-    'image/svg+xml': ['svg'],
-  });
-}
-
-// Ensure JS/TS module scripts always receive the correct MIME type
-app.use((req: Request, res: Response, next) => {
-  const urlPath = req.path || '';
-  if (
-    urlPath.endsWith('.tsx') ||
-    urlPath.endsWith('.ts') ||
-    urlPath.endsWith('.jsx') ||
-    urlPath.endsWith('.js') ||
-    urlPath.endsWith('.mjs')
-  ) {
-    res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
-  }
-  next();
-});
-
 app.use(express.json({ limit: '10mb' }));
 
-// Dual model strategy: Primary with automatic fallback
-const PRIMARY_MODEL = 'gemini-3.6-flash';
-const FALLBACK_MODEL = 'gemini-3.7-flash';
+// Multi-tier model fallback list
+const MODELS = ['gemini-3.1-flash-lite', 'gemini-3.7-flash', 'gemini-flash-latest'];
+const PRIMARY_MODEL = MODELS[0];
+const FALLBACK_MODEL = MODELS[1];
 
 // 1. [보안 & 안정성] Lazy initialization helper for Gemini client
 function getGeminiClient(): GoogleGenAI {
@@ -103,7 +79,7 @@ export function parseJsonSafely<T = any>(raw: string, defaultValue: T): T {
   }
 }
 
-// 3. [자동 복구 듀얼 모델] Primary 실패 시 Fallback으로 즉시 자동 전환
+// 3. [자동 복구 멀티 모델] 가용 모델을 순차적으로 시도하여 무중단 서비스 보장
 async function generateWithDualModel(
   ai: GoogleGenAI,
   options: {
@@ -111,34 +87,27 @@ async function generateWithDualModel(
     config?: any;
   }
 ): Promise<{ text: string; modelUsed: string }> {
-  try {
-    const response = await ai.models.generateContent({
-      model: PRIMARY_MODEL,
-      contents: options.contents,
-      config: options.config,
-    });
-    return {
-      text: response.text || '',
-      modelUsed: PRIMARY_MODEL,
-    };
-  } catch (primaryErr: any) {
-    console.warn(`[Gemini AI] Primary model (${PRIMARY_MODEL}) encountered an issue:`, primaryErr?.message || primaryErr);
-    console.log(`[Gemini AI] Automatically engaging fallback model (${FALLBACK_MODEL})...`);
+  let lastError: any = null;
+
+  for (const modelName of MODELS) {
     try {
-      const fallbackResponse = await ai.models.generateContent({
-        model: FALLBACK_MODEL,
+      const response = await ai.models.generateContent({
+        model: modelName,
         contents: options.contents,
         config: options.config,
       });
       return {
-        text: fallbackResponse.text || '',
-        modelUsed: FALLBACK_MODEL,
+        text: response.text || '',
+        modelUsed: modelName,
       };
-    } catch (fallbackErr: any) {
-      console.error(`[Gemini AI] Fallback model (${FALLBACK_MODEL}) also failed:`, fallbackErr?.message || fallbackErr);
-      throw fallbackErr;
+    } catch (err: any) {
+      console.warn(`[Gemini AI] Model ${modelName} returned error:`, err?.message || err);
+      lastError = err;
+      // Continue to next available fallback model in the list
     }
   }
+
+  throw lastError || new Error('모든 AI 모델 호출에 실패했습니다.');
 }
 
 // 4. Server health & status check

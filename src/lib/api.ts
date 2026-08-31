@@ -40,16 +40,37 @@ export interface GeminiConnectionTestResult {
   hasApiKey?: boolean;
 }
 
+async function safeFetchJson<T = any>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, options);
+  const text = await res.text();
+  
+  if (!text || text.trim().length === 0) {
+    throw new Error('서버로부터 빈 응답을 받았습니다.');
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // Check if HTML error page was returned
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+      if (!res.ok) {
+        throw new Error(`서버 응답 오류 (HTTP ${res.status} ${res.statusText})`);
+      }
+      throw new Error('서버가 준비 중이거나 일시적인 프록시 응답을 반환했습니다. 잠시 후 다시 시도해주세요.');
+    }
+    throw new Error(`응답 파싱 오류: ${text.slice(0, 100)}`);
+  }
+}
+
 /**
  * 1. [연결 점검] /api/gemini/test-connection 엔드포인트 호출
  */
 export async function testGeminiConnection(): Promise<GeminiConnectionTestResult> {
   try {
-    const res = await fetch('/api/gemini/test-connection', {
+    return await safeFetchJson<GeminiConnectionTestResult>('/api/gemini/test-connection', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
-    return await res.json();
   } catch (err: any) {
     return {
       success: false,
@@ -71,7 +92,7 @@ export async function testGeminiHealth(): Promise<GeminiConnectionTestResult> {
  */
 export async function generateTopicsAPI(params: GenerateTopicParams): Promise<{ success: boolean; topics?: any[]; modelUsed?: string; error?: string }> {
   try {
-    const res = await fetch('/api/gemini/generate-topic', {
+    return await safeFetchJson('/api/gemini/generate-topic', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -79,7 +100,6 @@ export async function generateTopicsAPI(params: GenerateTopicParams): Promise<{ 
         keywords: params.prompt || params.keywords,
       }),
     });
-    return await res.json();
   } catch (err: any) {
     return { success: false, error: err.message || '주제 생성 실패' };
   }
@@ -95,12 +115,11 @@ export async function getAIFeedbackAPI(params: {
   gradeLevel?: number;
 }): Promise<{ success: boolean; feedback?: AIFeedbackData; modelUsed?: string; error?: string }> {
   try {
-    const res = await fetch('/api/gemini/feedback', {
+    return await safeFetchJson('/api/gemini/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    return await res.json();
   } catch (err: any) {
     return { success: false, error: err.message || 'AI 피드백 요청 실패' };
   }
@@ -111,12 +130,11 @@ export async function getAIFeedbackAPI(params: {
  */
 export async function proofreadAPI(text: string): Promise<{ success: boolean; result?: ProofreadResult; modelUsed?: string; error?: string }> {
   try {
-    const res = await fetch('/api/gemini/proofread', {
+    return await safeFetchJson('/api/gemini/proofread', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
-    return await res.json();
   } catch (err: any) {
     return { success: false, error: err.message || '맞춤법 점검 요청 실패' };
   }
@@ -136,12 +154,11 @@ export async function generateAssessmentAPI(data: {
   selfAssessment?: any;
 }): Promise<{ success: boolean; assessment?: string; assessmentDraft?: ProcessAssessmentDraft; modelUsed?: string; error?: string }> {
   try {
-    const res = await fetch('/api/gemini/process-assessment', {
+    const json = await safeFetchJson<{ success: boolean; assessmentDraft?: ProcessAssessmentDraft; modelUsed?: string; error?: string }>('/api/gemini/process-assessment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ record: data }),
     });
-    const json = await res.json();
     if (json.success && json.assessmentDraft) {
       const draft = json.assessmentDraft as ProcessAssessmentDraft;
       const formatted = `[총평] ${draft.overview}\n\n[과정 분석] ${draft.processEvaluation}\n\n[주요 강점] ${draft.strengthsSummary}\n\n[성장 조언] ${draft.growthAdvice}`;

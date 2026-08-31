@@ -1226,8 +1226,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                   <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
                   메인 AI 모델
                 </div>
-                <div className="font-mono font-bold text-stone-200">gemini-3.6-flash</div>
-                <div className="text-[10px] text-stone-500">최우선 초고속 응답 처리</div>
+                <div className="font-mono font-bold text-stone-200">gemini-3.1-flash-lite</div>
+                <div className="text-[10px] text-stone-500">초고속 즉답 및 안정성 최적화</div>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1">
