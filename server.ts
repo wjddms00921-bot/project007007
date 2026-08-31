@@ -13,6 +13,31 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
+// Explicitly register TypeScript / JavaScript MIME types
+if (express.static && express.static.mime) {
+  express.static.mime.define({
+    'text/javascript': ['ts', 'tsx', 'jsx', 'mjs', 'mts', 'js'],
+    'text/css': ['css'],
+    'application/json': ['json'],
+    'image/svg+xml': ['svg'],
+  });
+}
+
+// Ensure JS/TS module scripts always receive the correct MIME type
+app.use((req: Request, res: Response, next) => {
+  const urlPath = req.path || '';
+  if (
+    urlPath.endsWith('.tsx') ||
+    urlPath.endsWith('.ts') ||
+    urlPath.endsWith('.jsx') ||
+    urlPath.endsWith('.js') ||
+    urlPath.endsWith('.mjs')
+  ) {
+    res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+  }
+  next();
+});
+
 app.use(express.json({ limit: '10mb' }));
 
 // Dual model strategy: Primary with automatic fallback
