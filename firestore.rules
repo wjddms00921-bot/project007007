@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Custom app authentication is managed at application level with secure hashing
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

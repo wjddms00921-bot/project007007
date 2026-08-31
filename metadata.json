@@ -1,0 +1,6 @@
+{
+  "name": "AI와 함께하는 글쓰기 성장",
+  "description": "초등학생을 위한 AI 피드백 및 과정 중심 글쓰기 성장 플랫폼",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

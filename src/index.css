@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #FFFBEB;
+    color: #4D4D4D;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
+  }
+}
+
+/* Vibrant Palette Custom Accents */
+.theme-coral {
+  background-color: #FF6B6B;
+  color: #FFFFFF;
+}
+
+.theme-yellow {
+  background-color: #FFD93D;
+  color: #4D4D4D;
+}
+
+.theme-blue {
+  background-color: #4D96FF;
+  color: #FFFFFF;
+}
+
+.theme-green {
+  background-color: #6BCB77;
+  color: #FFFFFF;
+}
